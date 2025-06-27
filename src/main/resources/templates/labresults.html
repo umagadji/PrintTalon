@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Результаты анализов</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/flatpickr.min.css}">
+    <script src="/js/flatpickr/flatpickr.js"></script>
+    <script src="/js/flatpickr/ru.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+</head>
+<body>
+<div class="wrapper container-fluid">
+    <!-- Шапка -->
+    <div class="header row align-items-center">
+        <div class="logo col-lg-2">
+            <img src="/img/logo.svg"/>
+        </div>
+        <div class="col-lg-10 d-flex justify-content-end align-items-center flex-wrap">
+            <div class="userinfo">
+                <h2 class="mb-0">Добро пожаловать, <span th:text="${patientName}">Пациент</span></h2>
+            </div>
+            <div class="btns_block d-flex align-items-center gap-2">
+                <button class="clickbtn custombtn text-nowrap" onclick="window.location.href='/select-type'">К выбору</button>
+                <button class="clickbtn logout-btn" onclick="logout()">Выход</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Дата и кнопки -->
+    <div class="info_block row align-items-center">
+        <div class="date_block col-lg-6">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <label for="analysisDate">Когда вы сдавали анализы: </label>
+                <input type="text" id="analysisDate" class="datepicker"
+                       th:data-default="${defaultFromDate}"
+                       th:data-max="${currentDate}">
+            </div>
+        </div>
+        <div class="col-lg-6 d-flex justify-content-end align-items-center flex-wrap">
+            <div class="timer_block">
+                <div id="timer" style="font-size: 24px; font-weight: bold; color:#f00"></div>
+            </div>
+            <div class="print_all">
+                <button class="clickbtn" onclick="printAllResults()"><b>Печатать все</b></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-container labresultspage row">
+        <div id="loading" class="loading" style="display: none;">Загрузка...</div>
+        <table id="resultsTable" class="customlable">
+            <thead>
+            <tr>
+                <th>ID образца</th>
+                <th>Материал</th>
+                <th>Отделение</th>
+                <th>Услуги</th>
+                <th>Дата забора</th>
+                <th>Дата готовности</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Заполняется через JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const snils = '[[${patientSnils}]]'; // Thymeleaf вставит значение
+
+    function fetchResults(date) {
+        const loading = document.getElementById("loading");
+        const tableBody = document.querySelector("#resultsTable tbody");
+
+        loading.style.display = "block";
+        tableBody.innerHTML = '';
+
+        fetch(`/labresults/ajax?snils=${snils}&date=${date}`)
+            .then(response => {
+                if (!response.ok) throw new Error("Ошибка загрузки");
+                return response.json();
+            })
+            .then(data => {
+                loading.style.display = "none";
+                updateTable(data);
+                updatePrintAllButtonVisibility();
+            })
+            .catch(error => {
+                loading.textContent = "Ошибка загрузки данных";
+                console.error("Ошибка:", error);
+            });
+    }
+
+    function updatePrintAllButtonVisibility() {
+        const tableBody = document.querySelector("#resultsTable tbody");
+        const rows = tableBody.querySelectorAll("tr");
+        const printAllBtn = document.querySelector(".print_all button");
+
+        // Проверяем, есть ли строки с данными (исключая заголовки групп)
+        const hasData = Array.from(rows).some(row => row.cells.length === 7 && !row.cells[0].hasAttribute('colspan'));
+
+        printAllBtn.style.display = hasData ? 'inline-block' : 'none';
+    }
+
+    function updateTable(data) {
+        const tableBody = document.querySelector("#resultsTable tbody");
+        tableBody.innerHTML = '';
+
+        const categories = [
+            { key: "afp_hgch", label: "АФП и ХГЧ" },
+            { key: "vpch", label: "ВПЧ" },
+            { key: "regular", label: "Остальные анализы" }
+        ];
+
+        let hasData = false;
+
+        categories.forEach(cat => {
+            const group = data[cat.key];
+            if (group && group.length > 0) {
+                hasData = true;
+                const headerRow = document.createElement("tr");
+                headerRow.innerHTML = `<td colspan="7" style="background:#f8f9fa; font-weight:bold;">${cat.label}</td>`;
+                tableBody.appendChild(headerRow);
+
+                group.forEach(result => {
+                    const row = document.createElement("tr");
+                    const wasPrinted = sessionStorage.getItem(`printed_${result.ids}`) === "true";
+                    const disabledClass = wasPrinted ? 'disabled' : '';
+
+                    row.innerHTML = `
+                    <td>${result.ids}</td>
+                    <td>${result.material}</td>
+                    <td>${result.otd}</td>
+                    <td>${result.usl}</td>
+                    <td>${result.collecdate}</td>
+                    <td>${result.finisdate}</td>
+                    <td>
+                        <button class="clickbtn print-btn ${disabledClass}"
+                                data-id="${result.ids}"
+                                data-group="${cat.key}"
+                                ${wasPrinted ? 'disabled' : ''}
+                                onclick="printResult('${result.ids}', '${cat.key}', this)">
+                            ${wasPrinted ? '<b>Распечатан</b>' : '<b>Печать</b>'}
+                        </button>
+                    </td>
+                `;
+                    tableBody.appendChild(row);
+                });
+            }
+        });
+
+        if (!hasData) {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Нет данных</td></tr>`;
+        }
+    }
+
+    let timeout = 30; // 30 секунд
+    let countdown;
+    let isPrinting = false;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById("analysisDate");
+        const savedDate = localStorage.getItem('lastSelectedDateLab');
+
+        // Получаем значения из data-атрибутов
+        const maxDate = input.dataset.max;    // например "2025-06-16"
+        const defaultDate = input.dataset.default; // например "2025-05-26" (3 недели назад)
+
+        if (savedDate) {
+            input.value = savedDate;
+        }
+
+        startSessionTimer();
+
+        flatpickr("#analysisDate", {
+            locale: "ru",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d.m.Y",
+            maxDate: maxDate,          // Устанавливаем максимальную дату
+            defaultDate: savedDate || defaultDate, // Используем сохраненную дату или дефолтную
+            onChange: function (selectedDates, dateStr) {
+                localStorage.setItem('lastSelectedDateLab', dateStr);
+                fetchResults(dateStr);
+            }
+        });
+
+        // Если дата была восстановлена или установлена по умолчанию, загрузить данные
+        fetchResults(input.value || defaultDate);
+    });
+
+    function startSessionTimer() {
+        if (countdown) clearInterval(countdown);
+
+        countdown = setInterval(() => {
+            timeout--;
+            document.getElementById("timer").textContent = `До завершения сессии: ${timeout} сек`;
+
+            if (timeout <= 0) {
+                clearInterval(countdown);
+                window.location.href = '/logout';
+            }
+        }, 1000);
+    }
+
+    function stopSessionTimer() {
+        clearInterval(countdown);
+    }
+
+    function printResult(ids, group, button) {
+        // Помечаем результат как напечатанный
+        sessionStorage.setItem(`printed_${ids}`, "true");
+
+        // Обновляем кнопку
+        if (button) {
+            button.disabled = true;
+            button.classList.add('disabled');
+            button.innerHTML = "<b>Распечатан</b>";
+        }
+
+        stopSessionTimer();
+        const date = document.getElementById("analysisDate").value;
+        const pdfUrl = `/labresults/pdf/${ids}?snils=${snils}&date=${date}&group=${group}`;
+        const viewerUrl = `/labresults/print/viewer?pdfUrl=${encodeURIComponent(pdfUrl)}&batch=false`;
+        window.open(viewerUrl, '_self');
+    }
+
+    function printAllResults() {
+        const date = document.getElementById("analysisDate").value;
+        stopSessionTimer();
+
+        fetch(`/labresults/ajax?snils=${snils}&date=${date}`)
+            .then(response => {
+                if (!response.ok) throw new Error("Ошибка загрузки");
+                return response.json();
+            })
+            .then(data => {
+                // Собираем все ID результатов
+                const allResults = [];
+                Object.values(data).forEach(group => {
+                    if (Array.isArray(group)) {
+                        group.forEach(result => allResults.push({
+                            id: result.ids,
+                            group: Object.keys(data).find(key => data[key] === group)
+                        }));
+                    }
+                });
+
+                if (allResults.length === 0) {
+                    alert("Нет результатов для печати");
+                    startSessionTimer();
+                    return;
+                }
+
+                // Помечаем все как напечатанные
+                allResults.forEach(result => {
+                    sessionStorage.setItem(`printed_${result.id}`, "true");
+                });
+
+                // Обновляем таблицу
+                updateTable(data);
+
+                // Открываем печать всех
+                window.open(`/labresults/print?snils=${snils}&date=${date}`, '_blank');
+            })
+            .catch(error => {
+                console.error("Ошибка:", error);
+                startSessionTimer();
+            });
+    }
+
+    function logout() {
+        localStorage.removeItem('lastSelectedDateLab');
+        sessionStorage.clear();
+        window.location.href = '/logout';
+    }
+</script>
+</body>
+</html>

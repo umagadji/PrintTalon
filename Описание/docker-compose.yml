@@ -1,0 +1,7 @@
+name: printtalon
+services:
+  printtalon:
+    build: .
+    ports:
+      - "8084:8084"
+    restart: always

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Выбор действия</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}">
+  <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
+  <script src="/js/bootstrap.min.js"></script>
+</head>
+<body>
+<div class="wrapper selecttype-wrapper container-fluid">
+
+  <!-- ✅ Header -->
+  <div class="header row align-items-center">
+    <div class="logo col-lg-2">
+      <img src="/img/logo.svg"/>
+    </div>
+    <div class="col-lg-10 d-flex justify-content-end align-items-center flex-wrap">
+      <div class="userinfo">
+        <h2 class="mb-0">Добро пожаловать, <span th:text="${patientName}">Пациент</span></h2>
+      </div>
+      <div class="btns_block">
+        <button class="clickbtn logout-btn" onclick="logout()">Выход</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ Инфо блок с таймером -->
+  <div class="info_block row align-items-center">
+    <div class="col-lg-6">
+      <!-- Можно убрать если не нужна дата -->
+    </div>
+    <div class="col-lg-6 d-flex justify-content-end align-items-center flex-wrap">
+      <div class="timer_block">
+        <div id="timer" style="font-size: 24px; font-weight: bold; color:#f00"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2 class="authTitle mb-4">Выберите действие</h2>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <a href="/services" class="d-block p-4 bg-white text-decoration-none text-center border rounded h-100 hover-shadow btngettalon">
+          <img th:src="@{/img/doctor.png}" alt="Талон" class="mb-3">
+          <div class="fs-5 fw-semibold">Распечатать<br>талон к врачу</div>
+        </a>
+      </div>
+
+      <div class="col-md-6">
+        <a href="/labresults" class="d-block p-4 bg-white text-decoration-none text-center border rounded h-100 hover-shadow btngetlabresults">
+          <img th:src="@{/img/labresults.png}" alt="Анализы" class="mb-3">
+          <div class="fs-5 fw-semibold">Распечатать<br>результаты анализов</div>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ✅ Скрипт таймера -->
+<script type="text/javascript">
+  let seconds = 30;
+
+  function updateTimer() {
+    document.getElementById('timer').textContent = "До завершения сессии: " + seconds + " сек.";
+    if (seconds === 0) {
+      window.location.href = '/logout';
+    } else {
+      seconds--;
+      setTimeout(updateTimer, 1000);
+    }
+  }
+
+  // Запуск таймера
+  updateTimer();
+
+  // Ручной выход
+  function logout() {
+    window.location.href = '/logout';
+  }
+</script>
+
+</body>
+</html>

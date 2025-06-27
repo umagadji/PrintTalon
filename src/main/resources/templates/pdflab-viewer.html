@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Предпросмотр печати</title>
+  <style>
+    html, body { margin:0; padding:0; height:100%; }
+    iframe { width:100%; height:100vh; border:none; }
+  </style>
+</head>
+<body>
+
+<iframe id="pdfFrame" th:src="@{${pdfUrl}}"></iframe>
+
+<script th:inline="javascript">
+  /*<![CDATA[*/
+  const iframe = document.getElementById('pdfFrame');
+  const isBatchPrint = [[${batch}]];
+
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+
+    if (isBatchPrint) {
+      setTimeout(() => window.close(), 3000);
+    } else {
+      // Перенаправляем обратно на labresults через 3 секунды
+      setTimeout(() => window.location.href = '/labresults', 3000);
+    }
+  };
+
+  // Добавляем обработчик ошибок
+  iframe.onerror = () => {
+    setTimeout(() => window.location.href = '/labresults', 3000);
+  };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Услуги</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/flatpickr.min.css}">
+    <script src="/js/flatpickr/flatpickr.js"></script>
+    <script src="/js/flatpickr/ru.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+</head>
+<body>
+<div class="wrapper container-fluid">
+    <div class="header row align-items-center">
+        <div class="logo col-sm-12 col-md-12 col-lg-2 col-xl-2 col-xxl-2">
+            <img src="/img/logo.svg"/>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-10 col-xl-10 col-xxl-10 d-flex justify-content-end align-items-center flex-wrap">
+            <div class="userinfo">
+                <h2 class="mb-0">Добро пожаловать, <span th:text="${patientName}">Пациент</span></h2>
+            </div>
+            <div class="btns_block d-flex align-items-center gap-2">
+                <button class="clickbtn custombtn text-nowrap" onclick="window.location.href='/select-type'">К выбору</button>
+                <button class="clickbtn logout-btn" onclick="logout()">Выход</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info_block row align-items-center">
+        <div class="date_block col-sm-12 col-md-12 col-lg-6 col-xl-6 col-xxl-6">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <label for="fromDate">Дата регистрации с: </label>
+                <input type="text" id="fromDate" name="fromDate" class="datepicker" th:data-max="${currentDate}" th:data-default="${defaultFromDate}">
+            </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-6 col-xl-6 col-xxl-6 d-flex justify-content-end align-items-center flex-wrap">
+            <div class="timer_block">
+                <div id="timer" style="font-size: 24px; font-weight: bold; color:#f00"></div>
+            </div>
+            <div class="print_all">
+                <button id="printAllBtn" class="clickbtn" onclick="printAllServices()"><b>Печатать все</b></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table_wrapper row">
+        <table id="request_items" class="customlable">
+            <thead>
+            <tr>
+                <th>Кабинет</th>
+                <th>Услуга</th>
+                <th>Дата</th>
+                <th>Врач</th>
+                <th>МО</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="s : ${services}">
+                <td th:text="${s.room}"></td>
+                <td th:text="${s.sText}"></td>
+                <td th:text="${#temporals.format(s.dat, 'dd.MM.yyyy HH:mm')}"></td>
+                <td th:text="${s.doctor}"></td>
+                <td th:text="${s.dirOrg}"></td>
+                <td>
+                    <button class="clickbtn print-btn"
+                            th:attr="data-keyid=${s.keyid}"
+                            th:onclick="'handlePrint(\'' + ${s.keyid} + '\', this);'">
+                        <b>Печать</b>
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    /*
+     * Объединенный скрипт для страницы услуг
+     * Содержит:
+     * 1. Инициализацию календаря
+     * 2. Логику таймера сессии
+     * 3. Функции печати (одиночной и массовой)
+     * 4. Обработчики событий для фильтрации по дате
+     * 5. Логику выхода из системы
+     */
+
+    const TIMER = 30;
+
+    // ========== 1. Инициализация календаря ==========
+    document.addEventListener('DOMContentLoaded', function() {
+        // Получаем значения из data-атрибутов
+        const input = document.querySelector(".datepicker");
+        const maxDate = input.dataset.max;    // "2025-06-16"
+        const defaultDate = input.dataset.default; // "2025-04-01"
+
+        console.log("maxDate:", maxDate);     // Проверьте в консоли браузера
+        console.log("defaultDate:", defaultDate);
+
+        // Настройка flatpickr
+        const fp = flatpickr(".datepicker", {
+            locale: "ru",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d.m.Y",
+            maxDate: maxDate,          // Убедимся, что это строка "YYYY-MM-DD"
+            defaultDate: defaultDate,  // Убедимся, что это строка "YYYY-MM-DD"
+            disableMobile: false,
+            touchUI: true,
+            onChange: function(selectedDates, dateStr, instance) {
+                const isoDate = instance.formatDate(selectedDates[0], "Y-m-d");
+                instance.element.dataset.default = isoDate;
+                localStorage.setItem('lastSelectedDate', isoDate);
+                instance.element.dispatchEvent(new Event('change'));
+            }
+        });
+
+        //Восстановление сохраненной даты
+        const savedDate = localStorage.getItem('lastSelectedDate');
+        if (savedDate) {
+            fp.setDate(savedDate, true);
+            document.getElementById('fromDate').dispatchEvent(new Event('change'));
+        }
+
+        // Запуск таймера сессии при загрузке
+        startSessionTimer();
+        updatePrintAllButtonVisibility();
+        // Проверяем состояние печати для всех кнопок
+        checkPrintedStatus();
+    });
+
+    // ========== Функция проверки состояния печати ==========
+    function checkPrintedStatus() {
+        document.querySelectorAll('.print-btn').forEach(btn => {
+            const keyid = btn.dataset.keyid;
+            if (sessionStorage.getItem(`printed_${keyid}`) === "true") {
+                btn.disabled = true;
+                btn.classList.add("disabled");
+                btn.innerHTML = "<b>Распечатан</b>";
+            }
+        });
+    }
+
+    // ========== 2. Таймер сессии ==========
+    let timeout = TIMER; // Таймер на 30 секунд
+    let countdown; // Переменная для хранения интервала таймера
+    let isPrinting = false; // Флаг процесса печати
+
+    // Запуск таймера
+    function startSessionTimer() {
+        if (countdown) clearInterval(countdown);
+
+        countdown = setInterval(() => {
+            timeout--;
+            document.getElementById("timer").textContent = `До завершения сессии: ${timeout} сек`;
+
+            if (timeout <= 0) {
+                clearInterval(countdown);
+                localStorage.removeItem('lastSelectedDate');
+                sessionStorage.clear();
+                window.location.href = '/logout';
+            }
+        }, 1000);
+    }
+
+    // Остановка таймера
+    function stopSessionTimer() {
+        clearInterval(countdown);
+    }
+
+    // ========== 3. Функции печати ==========
+    // Печать всех услуг
+    function printAllServices() {
+        const selectedDate = document.getElementById("fromDate").value;
+        localStorage.setItem('lastSelectedDate', selectedDate);
+
+        // Обновление видимой даты в календаре
+        const fp = document.querySelector(".datepicker")._flatpickr;
+        if (fp) fp.setDate(selectedDate, true);
+
+        isPrinting = true;
+        stopSessionTimer();
+
+        fetch(`/services/ajax?fromDate=${selectedDate}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    alert("Нет услуг для печати");
+                    isPrinting = false;
+                    startSessionTimer();
+                    return;
+                }
+                printNextService(data.map(item => item.keyid), 0);
+            })
+            .catch(error => {
+                console.error("Ошибка при получении услуг:", error);
+                isPrinting = false;
+                startSessionTimer();
+            });
+    }
+
+    // Последовательная печать услуг
+    function printNextService(serviceIds, index) {
+        if (index >= serviceIds.length) {
+            isPrinting = false;
+            timeout = TIMER;
+            startSessionTimer();
+            return;
+        }
+
+        const serviceId = serviceIds[index];
+        const printWindow = window.open(`/print/pdf/viewer/${serviceId}?batch=true`, `printWindow_${index}`);
+
+        const checkClosed = setInterval(() => {
+            if (printWindow.closed) {
+                clearInterval(checkClosed);
+                setTimeout(() => printNextService(serviceIds, index + 1), 1000);
+            }
+        }, 100);
+    }
+
+    // ========== 4. Обработчики событий для фильтрации ==========
+    document.getElementById("fromDate").addEventListener("change", function() {
+        const fpInstance = this._flatpickr;
+        const selectedDate = fpInstance.selectedDates[0];
+        const isoDate = fpInstance.formatDate(selectedDate, "Y-m-d"); // Получаем дату в правильном формате
+
+        // Обновляем data-атрибуты
+        this.dataset.default = isoDate;
+        localStorage.setItem('lastSelectedDate', isoDate);
+
+        fetch(`/services/ajax?fromDate=${isoDate}`)
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector("#request_items tbody");
+                tbody.innerHTML = "";
+
+                data.forEach(service => {
+                    const row = document.createElement("tr");
+                    const serviceDate = new Date(service.dat);
+                    let formattedDate = 'Invalid Date';
+
+                    if (!isNaN(serviceDate.getTime())) {
+                        formattedDate = serviceDate.toLocaleString('ru-RU', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }).replace(',', '');
+                    }
+
+                    row.innerHTML = `
+                        <td>${service.room}</td>
+                        <td>${service.sText}</td>
+                        <td>${formattedDate}</td>
+                        <td>${service.doctor}</td>
+                        <td>${service.dirOrg}</td>
+                        <td>
+                            <button class="clickbtn print-btn"
+                                    data-keyid="${service.keyid}"
+                                    onclick="handlePrint('${service.keyid}', this)">
+                                <b>Печать</b>
+                            </button>
+                        </td>
+                    `;
+                    //<td><button className="clickbtn" onClick="localStorage.setItem('lastSelectedDate', document.getElementById('fromDate').value); stopSessionTimer(); window.open('/print/pdf/viewer/${service.keyid}', '_self')"><b>Печать</b></button></td>
+
+                    //При загрузке таблицы — деактивировать уже использованные кнопки
+                    const wasPrinted = sessionStorage.getItem(`printed_${service.keyid}`) === "true";
+                    if (wasPrinted) {
+                        const btn = row.querySelector(".print-btn");
+                        if (btn) {
+                            btn.disabled = true;
+                            btn.classList.add("disabled");
+                            btn.innerHTML = "<b>Распечатан</b>";
+                        }
+                    }
+
+                    tbody.appendChild(row);
+                    updatePrintAllButtonVisibility();
+                });
+            });
+
+        // После обновления таблицы проверяем состояние кнопок
+        checkPrintedStatus();
+    });
+
+    function handlePrint(keyid, button) {
+        // 1. Блокируем кнопку сразу
+        button.disabled = true;
+        button.classList.add("disabled");
+        button.innerHTML = "<b>Печатается...</b>";
+
+        // 2. Сохраняем состояние в sessionStorage
+        sessionStorage.setItem(`printed_${keyid}`, "true");
+
+        // 3. Обновляем таймер и дату
+        stopSessionTimer();
+        localStorage.setItem('lastSelectedDate', document.getElementById('fromDate').value);
+
+        try {
+            // 4. Открываем печать в новом окне (без перезагрузки страницы)
+            const printWindow = window.open(`/print/pdf/viewer/${keyid}`, '_self');
+
+            if (!printWindow) {
+                // Браузер заблокировал popup
+                alert("Разрешите всплывающие окна для печати!");
+                button.innerHTML = "<b>Ошибка</b>";
+                startSessionTimer();
+                return;
+            }
+
+            // 5. Проверяем закрытие окна печати
+            const checkClosed = setInterval(() => {
+                if (printWindow.closed) {
+                    clearInterval(checkClosed);
+                    button.innerHTML = "<b>Распечатан</b>";
+                    startSessionTimer();
+                }
+            }, 500);
+        } catch (e) {
+            console.error("Ошибка печати:", e);
+            button.innerHTML = "<b>Ошибка</b>";
+            startSessionTimer();
+        }
+    }
+
+    // ========== 5. Выход из системы ==========
+    function logout() {
+        localStorage.removeItem('lastSelectedDate');
+        sessionStorage.clear();
+        window.location.href = '/logout';
+    }
+
+    //Функция, которая будет проверять, есть ли строки в <tbody> таблицы, и соответственно скрывать или показывать кнопку:
+    function updatePrintAllButtonVisibility() {
+        const tbody = document.querySelector("#request_items tbody");
+        const rows = tbody.querySelectorAll("tr");
+        const printAllBtn = document.getElementById("printAllBtn");
+
+        if (rows.length === 0) {
+            printAllBtn.style.display = 'none';
+        } else {
+            printAllBtn.style.display = 'inline-block'; // или 'block', в зависимости от верстки
+        }
+    }
+
+    // ========== Дополнительная отладочная информация ==========
+    /*console.log("Список ключей:");
+    [[${services}]].forEach(function(s) {
+        console.log("keyid = " + s.keyid);
+    });*/
+</script>
+
+</body>
+</html>

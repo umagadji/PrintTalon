@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Вход пациента</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script th:src="@{/js/keyboard.js}"></script>
+</head>
+<body>
+<div class="bd_wrapper">
+    <div class="login-container">
+        <h2 class="authTitle">Авторизация пациента</h2>
+
+        <div th:if="${error}" class="error-message" th:text="${error}"></div>
+
+        <form id="loginForm" method="post" th:action="@{/login}">
+
+            <div class="input-wrapper">
+                <input type="text" id="snilsInput" class="input-field" name="snils" placeholder="СНИЛС" readonly />
+                <!--<button type="button" class="clear-btn" onclick="clearField('snilsInput')">&times;</button> -->
+            </div>
+
+            <div id="keyboard"></div>
+            <button class="clickbtn btnlogin" type="submit">Войти</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
