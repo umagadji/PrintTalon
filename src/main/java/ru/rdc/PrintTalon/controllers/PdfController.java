@@ -2,6 +2,8 @@ package ru.rdc.PrintTalon.controllers;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
@@ -15,6 +17,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 import ru.rdc.PrintTalon.repository.ServicesRepository;
+import ru.rdc.PrintTalon.services.PrintStatsService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -27,10 +30,15 @@ import java.util.Objects;
 public class PdfController {
 
     private final ServicesRepository servicesRepository;
+    private final PrintStatsService printStatsService;
 
     //Обновленный вариант, где формирование pdf происходит на стороне сервера
     @GetMapping("/print/pdf/{id}")
     public void generatePdfRaw(@PathVariable("id") Long id, HttpServletResponse response) throws Exception {
+
+        //Логируем печать
+        printStatsService.logPrint("TALON", Map.of("id", id));
+
         Map<String, Object> data = servicesRepository.getTalonData(id);
 
         ByteArrayOutputStream byteStream = new ByteArrayOutputStream();

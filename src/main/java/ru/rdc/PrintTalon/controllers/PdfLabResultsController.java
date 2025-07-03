@@ -10,6 +10,8 @@ import com.google.zxing.common.BitMatrix;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.pdf.qrcode.ErrorCorrectionLevel;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import ru.rdc.PrintTalon.dto.LabTestResultDto;
 import ru.rdc.PrintTalon.services.LabResultService;
+import ru.rdc.PrintTalon.services.PrintStatsService;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -43,6 +46,7 @@ import java.util.stream.Collectors;
 public class PdfLabResultsController {
 
     private final LabResultService labResultService;
+    private final PrintStatsService printStatsService;
 
     /**
      * Генерирует PDF-файл с результатами лабораторных исследований по заданным параметрам.
@@ -61,6 +65,9 @@ public class PdfLabResultsController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String group,
             HttpServletResponse response) throws IOException {
+
+        //Логируем печать
+        printStatsService.logPrint("LABREULT", Map.of("ids", ids));
 
         // Преобразуем "regular" в "other" для совместимости с логикой фильтрации
         if ("regular".equalsIgnoreCase(group)) {
