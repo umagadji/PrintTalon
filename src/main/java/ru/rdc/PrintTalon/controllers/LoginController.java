@@ -19,26 +19,100 @@ public class LoginController {
     @Autowired
     private PatientRepository patientRepository;
 
+    @GetMapping("/")
+    public String showIndex() {
+        return "redirect:/index";
+    }
+
+    @GetMapping("/index")
+    public String showIndexPage() {
+        return "index";
+    }
+
     @PostMapping("/login")
-    public String handleLogin(@RequestParam String snils,
+    public String handleLogin(@RequestParam String credential,
+                              @RequestParam String authMethod,
+                              @RequestParam String action,
                               HttpSession session,
                               Model model) {
 
-        Optional<Patient> patientOpt = patientRepository.authenticate(snils);
+        Optional<Patient> patientOpt = Optional.empty();
+        String errorMessage = "";
 
-        if (patientOpt.isPresent()) {
-            Patient patient = patientOpt.get();
-            session.setAttribute("patientId", patient.getPatientId());
-            session.setAttribute("patientName", patient.getName());
-            return "redirect:/select-type";
-        } else {
-            model.addAttribute("error", "Пациент с таким СНИЛС не найден в системе");
+        // Проверка на пустые данные
+        if (credential == null || credential.trim().isEmpty()) {
+            switch (authMethod) {
+                case "snils":
+                    errorMessage = "Введите СНИЛС";
+                    break;
+                case "policy":
+                    errorMessage = "Введите номер полиса";
+                    break;
+                case "card":
+                    errorMessage = "Введите номер карты";
+                    break;
+                default:
+                    errorMessage = "Введите данные для авторизации";
+            }
+            model.addAttribute("error", errorMessage);
+            model.addAttribute("action", action);
             return "login";
         }
+
+        // Проверка длины введенных данных
+        switch (authMethod) {
+            case "snils":
+                if (credential.length() != 11) {
+                    errorMessage = "СНИЛС должен содержать 11 цифр";
+                } else {
+                    patientOpt = patientRepository.authenticateBySnils(credential);
+                    errorMessage = "Пациент с таким СНИЛС не найден";
+                }
+                break;
+            case "policy":
+                if (credential.length() != 16) {
+                    errorMessage = "Номер полиса должен содержать 16 цифр";
+                } else {
+                    patientOpt = patientRepository.authenticateByPolicyNumber(credential);
+                    errorMessage = "Пациент с таким номером полиса не найден";
+                }
+                break;
+            case "card":
+                if (credential.length() < 1 || credential.length() > 7) {
+                    errorMessage = "Номер карты должен содержать от 1 до 7 цифр";
+                } else {
+                    patientOpt = patientRepository.authenticateByCardNumber(credential);
+                    errorMessage = "Пациент с таким номером карты не найден";
+                }
+                break;
+            default:
+                errorMessage = "Неизвестный метод аутентификации";
+        }
+
+        // Если есть ошибка валидации
+        if (!errorMessage.isEmpty() && !patientOpt.isPresent()) {
+            model.addAttribute("error", errorMessage);
+            model.addAttribute("action", action);
+            return "login";
+        }
+
+        // Если пациент найден
+        Patient patient = patientOpt.get();
+        session.setAttribute("patientId", patient.getPatientId());
+        session.setAttribute("patientName", patient.getName());
+
+        return "redirect:/" + ("results".equals(action) ? "labresults" : "services");
     }
 
     @GetMapping("/login")
-    public String showLoginPage() {
+    public String showLoginPage(@RequestParam(required = false) String action,
+                                HttpSession session, Model model) {
+        // Если уже авторизован, перенаправляем на соответствующую страницу
+        if (session.getAttribute("patientId") != null) {
+            return "redirect:/" + ("results".equals(action) ? "labresults" : "services");
+        }
+
+        model.addAttribute("action", action); // передаем действие в шаблон
         return "login";
     }
 
@@ -49,12 +123,6 @@ public class LoginController {
         // Добавляем заголовок для очистки localStorage
         response.setHeader("Clear-Site-Data", "\"cache\", \"cookies\", \"storage\", \"executionContexts\"");
 
-        return "redirect:/login";
+        return "redirect:/";
     }
-
-    /*@GetMapping("/logout")
-    public String logout(HttpSession session) {
-        session.invalidate();
-        return "redirect:/login";
-    }*/
 }

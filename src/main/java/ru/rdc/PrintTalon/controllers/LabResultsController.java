@@ -33,8 +33,12 @@ public class LabResultsController {
 
     @GetMapping("/labresults")
     public String getLabResultsPage(HttpSession session, Model model) {
+
+        if (session.getAttribute("patientId") == null) {
+            return "redirect:/login?action=results";
+        }
+
         Long patientId = (Long) session.getAttribute("patientId");
-        if (patientId == null) return "redirect:/login";
 
         Optional<Patient> patientOpt = patientRepository.findById(patientId);
         if (patientOpt.isEmpty()) return "redirect:/login";

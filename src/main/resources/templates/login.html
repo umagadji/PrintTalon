@@ -4,26 +4,99 @@
     <meta charset="UTF-8">
     <title>Вход пациента</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
     <script th:src="@{/js/keyboard.js}"></script>
+    <style>
+        .container-fluid {
+            padding-right: 0;
+            padding-left: 0;
+            margin-right: 0;
+            margin-left: 0;
+        }
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+        }
+    </style>
 </head>
-<body>
-<div class="bd_wrapper">
-    <div class="login-container">
-        <h2 class="authTitle">Авторизация пациента</h2>
+<body class="d-flex flex-column min-vh-100">
+<div class="container-fluid d-flex flex-column flex-grow-1 p-0">
 
-        <div th:if="${error}" class="error-message" th:text="${error}"></div>
+    <!-- Шапка -->
+    <div class="header row align-items-center">
+        <div class="logo col-lg-2">
+            <img src="/img/logo.svg"/>
+        </div>
+        <div class="col-lg-10 d-flex justify-content-end align-items-center flex-wrap">
+            <div class="btns_block">
+                <button type="button" class="clickbtn custombtn" onclick="window.location.href='/index'">На главную</button>
+            </div>
+        </div>
+    </div>
 
-        <form id="loginForm" method="post" th:action="@{/login}">
+    <!-- Центрированный блок авторизации -->
+    <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 py-4">
+        <div class="login-container text-center w-100">
+            <h2 class="authTitle mb-4">Авторизация пациента</h2>
 
-            <div class="input-wrapper">
-                <input type="text" id="snilsInput" class="input-field" name="snils" placeholder="СНИЛС" readonly />
-                <!--<button type="button" class="clear-btn" onclick="clearField('snilsInput')">&times;</button> -->
+            <div class="auth-methods d-flex justify-content-center gap-2 mb-4">
+                <button type="button" class="auth-method-btn active" data-method="snils" data-placeholder="СНИЛС">По СНИЛС</button>
+                <button type="button" class="auth-method-btn" data-method="policy" data-placeholder="Номер полиса">По полису</button>
             </div>
 
-            <div id="keyboard"></div>
-            <button class="clickbtn btnlogin" type="submit">Войти</button>
-        </form>
+            <div th:if="${error}" class="error-message mb-3" th:text="${error}"></div>
+
+            <form id="loginForm" method="post" th:action="@{/login}" class="w-100">
+                <input type="hidden" id="authMethod" name="authMethod" value="snils">
+                <input type="hidden" name="action" th:value="${action}">
+
+                <div class="input-wrapper mb-3 w-100">
+                    <input type="text" id="authInput" class="input-field form-control" name="credential" placeholder="СНИЛС" readonly />
+                </div>
+
+                <div id="keyboard" class="mb-4 w-100"></div>
+                <button class="clickbtn btnlogin" type="submit">Войти</button>
+            </form>
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const authMethodButtons = document.querySelectorAll('.auth-method-btn');
+        authMethodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const method = this.dataset.method;
+                const placeholder = this.dataset.placeholder;
+                changeAuthMethod(method, placeholder, this);
+            });
+        });
+
+        const defaultButton = document.querySelector('.auth-method-btn.active');
+        if (defaultButton) {
+            currentFormat = defaultButton.dataset.method;
+        }
+    });
+
+    function changeAuthMethod(method, placeholder, buttonElement) {
+        const errorDiv = document.querySelector('.error-message');
+        if (errorDiv) {
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+        }
+
+        document.querySelectorAll('.auth-method-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        buttonElement.classList.add('active');
+
+        currentFormat = method;
+        document.getElementById('authMethod').value = method;
+        const inputField = document.getElementById('authInput');
+        inputField.placeholder = placeholder;
+        inputField.value = '';
+        currentInput = inputField;
+    }
+</script>
 </body>
 </html>

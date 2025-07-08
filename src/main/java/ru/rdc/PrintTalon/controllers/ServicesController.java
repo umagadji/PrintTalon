@@ -28,8 +28,12 @@ public class ServicesController {
 
     @GetMapping("/services")
     public String showServices(HttpSession session, Model model) {
+
+        if (session.getAttribute("patientId") == null) {
+            return "redirect:/login?action=talon";
+        }
+
         Long patientId = (Long) session.getAttribute("patientId");
-        if (patientId == null) return "redirect:/login";
 
         model.addAttribute("patientName", session.getAttribute("patientName"));
 

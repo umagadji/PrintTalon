@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Ваше Spring Boot приложение
+  print-service:
+    build: .  # Собирает образ из Dockerfile в текущей директории
+    image: print-talon-app:latest
+    container_name: print-service
+    ports:
+      - "8084:8084"  # Порт, указанный в EXPOSE Dockerfile
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - INFLUX_URL=http://influxdb:8086  # Используем имя сервиса
+      - INFLUX_TOKEN=7a3e9b1c5d8f2g4h6j8k0l2m4n6p8q0  # Подставьте реальный токен
+      - INFLUX_ORG=PrintTalon  # Например, PrintTalon
+      - INFLUX_BUCKET=print_stats
+      - INFLUX_RETENTION_POLICY=1825d
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    networks:
+      - monitoring-net
+
+  # InfluxDB для хранения статистики
+  influxdb:
+    image: influxdb:2.7.4
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2  # Для сохранения данных
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin  # Логин для входа
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin123  # Пароль (измените)
+      - DOCKER_INFLUXDB_INIT_ORG=PrintTalon  # Организация
+      - DOCKER_INFLUXDB_INIT_BUCKET=print_stats  # Бакет
+      - DOCKER_INFLUXDB_INIT_RETENTION=1825d  # Политика хранения
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=7a3e9b1c5d8f2g4h6j8k0l2m4n6p8q0  # Токен
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  # Grafana для визуализации
+  grafana:
+    image: grafana/grafana:10.4.3 # Последняя стабильная с Flux
+    environment:
+      GF_INSTALL_PLUGINS: grafana-influxdb-flux-datasource # Автоустановка плагина
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning  # Эта строка критически важна
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+    depends_on:
+      - influxdb
+
+volumes:
+  influxdb_data:
+  grafana_data:
+
+networks:
+  monitoring-net:
+    driver: bridge
