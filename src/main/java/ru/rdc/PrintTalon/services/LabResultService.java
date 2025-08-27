@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 public class LabResultService {
     private final LabResultRepository repository;
 
-    public Map<String, List<LabTestResultDto>> groupResults(String snils, LocalDate date) {
-        List<LabTestResultDto> results = repository.findResultsBySnilsAndDate(snils, date);
+    public Map<String, List<LabTestResultDto>> groupResults(Long patientID, LocalDate date) {
+        List<LabTestResultDto> results = repository.findResultsByPatientIdAndDate(patientID, date);
 
         // Группировка по ключу (ids, material, otd, collecdate)
         Map<String, List<LabTestResultDto>> grouped = results.stream()
@@ -28,8 +28,8 @@ public class LabResultService {
         return grouped;
     }
 
-    public List<Path> generatePdfReports(String snils, LocalDate date) {
-        Map<String, List<LabTestResultDto>> groupedData = groupResults(snils, date);
+    public List<Path> generatePdfReports(Long patientID, LocalDate date) {
+        Map<String, List<LabTestResultDto>> groupedData = groupResults(patientID, date);
         List<Path> pdfPaths = new ArrayList<>();
         int idx = 1;
 
@@ -50,15 +50,15 @@ public class LabResultService {
                     .toList();
 
             if (!afpHgchGroup.isEmpty()) {
-                Path path = createLabResultsAfphgchPdf(afpHgchGroup, snils, date, idx);
+                Path path = createLabResultsAfphgchPdf(afpHgchGroup, patientID, date, idx);
                 pdfPaths.add(path);
             }
             if (!vpchGroup.isEmpty()) {
-                Path path = createLabResultsVpchPdf(vpchGroup, snils, date, idx);
+                Path path = createLabResultsVpchPdf(vpchGroup, patientID, date, idx);
                 pdfPaths.add(path);
             }
             if (!regularGroup.isEmpty()) {
-                Path path = createLabResultsStandardPdf(regularGroup, snils, date, idx);
+                Path path = createLabResultsStandardPdf(regularGroup, patientID, date, idx);
                 pdfPaths.add(path);
             }
 
@@ -68,8 +68,14 @@ public class LabResultService {
         return pdfPaths;
     }
 
-    public Map<String, List<LabResultViewDto>> getCategorizedResultsForView(String snils, LocalDate date) {
-        List<LabTestResultDto> results = repository.findResultsBySnilsAndDate(snils, date);
+    public Map<String, List<LabResultViewDto>> getCategorizedResultsForView(Long patientID, LocalDate date) {
+        List<LabTestResultDto> results = repository.findResultsByPatientIdAndDate(patientID, date);
+        List<LabResultViewDto> workingResults = repository.findWorkingResultsByPatientIdAndDate(patientID, date);
+
+        for (LabResultViewDto l: workingResults
+             ) {
+            System.out.println(l);
+        }
 
         // Коды для категорий
         Set<String> afpHgchCodes = Set.of("516945", "521606", "516947", "521608");
@@ -79,6 +85,7 @@ public class LabResultService {
         categorized.put("afp_hgch", new ArrayList<>());
         categorized.put("vpch", new ArrayList<>());
         categorized.put("regular", new ArrayList<>());
+        categorized.put("working", new ArrayList<>()); // Добавляем категорию для результатов в работе
 
         // Группировка по IDS (может попасть в несколько категорий)
         Map<String, List<LabTestResultDto>> groupedByIds = results.stream()
@@ -120,6 +127,9 @@ public class LabResultService {
                 categorized.get("regular").add(new LabResultViewDto(ids, first.getMaterial(), first.getOtd(), usl,
                         first.getCollecdate(), first.getFinisdate()));
             }
+
+            // Добавляем результаты в работе после всех остальных категорий
+            categorized.get("working").addAll(workingResults);
         }
 
         return categorized;
@@ -127,25 +137,25 @@ public class LabResultService {
 
     /**
      * Получает все результаты анализов по СНИЛСу и дате
-     * @param snils СНИЛС пациента
+     * @param patientID keyid пациента
      * @param analysisDate Дата анализа
      * @return Список результатов анализов
      */
-    public List<LabTestResultDto> findResultsBySnilsAndDate(String snils, LocalDate analysisDate) {
-        return repository.findResultsBySnilsAndDate(snils, analysisDate);
+    public List<LabTestResultDto> findResultsByPatientIdAndDate(Long patientID, LocalDate analysisDate) {
+        return repository.findResultsByPatientIdAndDate(patientID, analysisDate);
     }
 
     // Заглушки — реализуй генерацию PDF с помощью iText, FlyingSaucer, Jasper и т.п.
-    private Path createLabResultsAfphgchPdf(List<LabTestResultDto> data, String snils, LocalDate date, int idx) {
+    private Path createLabResultsAfphgchPdf(List<LabTestResultDto> data, Long patientID, LocalDate date, int idx) {
         // Генерация PDF и возврат пути к файлу
-        return Path.of("pdf/lab_results_" + snils + "_" + date + "_afphgch_" + idx + ".pdf");
+        return Path.of("pdf/lab_results_" + patientID + "_" + date + "_afphgch_" + idx + ".pdf");
     }
 
-    private Path createLabResultsVpchPdf(List<LabTestResultDto> data, String snils, LocalDate date, int idx) {
-        return Path.of("pdf/lab_results_" + snils + "_" + date + "_vpch_" + idx + ".pdf");
+    private Path createLabResultsVpchPdf(List<LabTestResultDto> data, Long patientID, LocalDate date, int idx) {
+        return Path.of("pdf/lab_results_" + patientID + "_" + date + "_vpch_" + idx + ".pdf");
     }
 
-    private Path createLabResultsStandardPdf(List<LabTestResultDto> data, String snils, LocalDate date, int idx) {
-        return Path.of("pdf/lab_results_" + snils + "_" + date + "_" + idx + ".pdf");
+    private Path createLabResultsStandardPdf(List<LabTestResultDto> data, Long patientID, LocalDate date, int idx) {
+        return Path.of("pdf/lab_results_" + patientID + "_" + date + "_" + idx + ".pdf");
     }
 }

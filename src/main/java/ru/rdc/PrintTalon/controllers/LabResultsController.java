@@ -65,7 +65,6 @@ public class LabResultsController {
      * Возвращает данные, сгруппированные по категориям, в формате JSON.
      *
      * @param date    Дата анализа
-     * @param snils   СНИЛС пациента
      * @param session HTTP-сессия (не используется, но может быть полезна для аутентификации)
      * @return        JSON-ответ с результатами по категориям: afp_hgch, vpch, regular и др.
      */
@@ -73,11 +72,14 @@ public class LabResultsController {
     @ResponseBody
     public Map<String, List<Map<String, String>>> getLabResultsAjax(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam String snils,
             HttpSession session) {
 
+        Long patientId = (Long) session.getAttribute("patientId");
+
+        System.out.println("patientId = " + patientId);
+
         // Получаем результаты анализов, сгруппированные по категориям (внутри сервиса)
-        Map<String, List<LabResultViewDto>> categorized = labResultService.getCategorizedResultsForView(snils, date);
+        Map<String, List<LabResultViewDto>> categorized = labResultService.getCategorizedResultsForView(patientId, date);
 
         // Подготовим результат для клиента: каждая категория будет содержать список упрощённых DTO
         Map<String, List<Map<String, String>>> response = new LinkedHashMap<>();
@@ -119,10 +121,13 @@ public class LabResultsController {
             @RequestParam String snils,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam String ids,
+            HttpSession session,
             HttpServletResponse response) throws IOException {
 
+        Long patientId = (Long) session.getAttribute("patientId");
+
         // Получаем список результатов по СНИЛС и дате, фильтруем по ids (идентификатору образца)
-        List<LabTestResultDto> results = labResultService.findResultsBySnilsAndDate(snils, date)
+        List<LabTestResultDto> results = labResultService.findResultsByPatientIdAndDate(patientId, date)
                 .stream()
                 .filter(r -> r.getIds().equals(ids)) // фильтрация по конкретному образцу
                 .collect(Collectors.toList());

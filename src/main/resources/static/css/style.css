@@ -419,6 +419,7 @@ button.print-btn.disabled {
 
 .btngettalon, .btngetlabresults {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border-width: 4px !important;
 }
 
 .btngettalon img, .btngetlabresults img {
@@ -483,4 +484,9 @@ button.print-btn.disabled {
 /* Эффект при наведении */
 .auth-method-btn:not(.active):hover {
     background: #0062a3;
+}
+
+.btngettalon span {
+    font-size: 1rem;
+    display: block;
 }

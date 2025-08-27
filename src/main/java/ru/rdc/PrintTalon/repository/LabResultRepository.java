@@ -3,6 +3,7 @@ package ru.rdc.PrintTalon.repository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import ru.rdc.PrintTalon.dto.LabResultViewDto;
 import ru.rdc.PrintTalon.dto.LabTestResultDto;
 
 import java.time.LocalDate;
@@ -15,7 +16,7 @@ public class LabResultRepository {
     private final JdbcTemplate jdbcTemplate;
 
     //Получаем данные для результатов анализов из БД
-    public List<LabTestResultDto> findResultsBySnilsAndDate(String snils, LocalDate analysisDate) {
+    public List<LabTestResultDto> findResultsByPatientIdAndDate(Long patientID, LocalDate analysisDate) {
         String sql = """
                 SELECT
                     p_pat.num(r.patient_id) as pnum,
@@ -97,7 +98,7 @@ public class LabResultRepository {
                          JOIN nlab.lab_test lt ON tr.lab_test_id = lt.id
                          JOIN nlab.serv serv ON serv.id IN (SELECT st.serv_id FROM nlab.serv_test st WHERE st.test_id = lt.id)
                          JOIN nlab.lab_research lr ON lr.serv_id = serv.id AND lr.lab_sample_id = ls.id
-                WHERE p.snils = ?
+                WHERE p.keyid = ?
                   AND trunc(r.collectdate) >= ?
                   AND tr.value IS NOT NULL
                   AND ls.status IN ('VALIDATED','REPORTED', 'ARCHIVED', 'RESULT')
@@ -106,7 +107,7 @@ public class LabResultRepository {
                 ORDER BY to_char(r.collectdate, 'dd.mm.yyyy'), lt.view_sortcode
                 """;
 
-        return jdbcTemplate.query(sql, new Object[]{snils, analysisDate}, (rs, rowNum) -> {
+        return jdbcTemplate.query(sql, new Object[]{patientID, analysisDate}, (rs, rowNum) -> {
             return new LabTestResultDto(
                     rs.getString("pnum"),
                     rs.getString("fio"),
@@ -142,6 +143,42 @@ public class LabResultRepository {
                     rs.getString("EMAIL"),
                     rs.getString("SPRAVOCHNAYA"),
                     rs.getString("MO")
+            );
+        });
+    }
+
+    //Получаем данные для анализов, которые в работе из БД
+    public List<LabResultViewDto> findWorkingResultsByPatientIdAndDate(Long patientID, LocalDate analysisDate) {
+        String sql = """
+                select distinct
+                ls.ids as ids,
+                s.text as material,
+                coalesce(trim((select ld.text from nlab.lab_dep ld where ld.id = ls.target_lab_dep_id)),'Нет') as otd,
+                serv.text as usl,
+                to_char(ls.collect_date, 'dd.mm.yyyy hh24:mi') as collecdate,
+                'В работе' as finisdate
+                from
+                nlab.test_result tr
+                join nlab.lab_sample ls on tr.lab_sample_id = ls.id
+                join solution_lab.research r on ls.ariadna_id = r.id
+                join nlab.specimen s on ls.specimen_id = s.id
+                join nlab.lab_test lt on tr.lab_test_id = lt.id
+                join nlab.serv serv on serv.id in (select st.serv_id from nlab.serv_test st where st.test_id = lt.id)
+                join nlab.lab_research lr on lr.serv_id = serv.id and lr.lab_sample_id = ls.id
+                WHERE r.patient_id = ?
+                  AND trunc(r.collectdate) >= ?
+                  and ls.status in ('WORKING', 'READY', 'RESULT')
+                  and tr.validation_status = 0
+                """;
+
+        return jdbcTemplate.query(sql, new Object[]{patientID, analysisDate}, (rs, rowNum) -> {
+            return new LabResultViewDto(
+                    rs.getString("ids"),
+                    rs.getString("material"),
+                    rs.getString("otd"),
+                    rs.getString("usl"),
+                    rs.getString("collecdate"),
+                    rs.getString("finisdate")
             );
         });
     }

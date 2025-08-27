@@ -13,6 +13,7 @@ import com.itextpdf.text.pdf.qrcode.ErrorCorrectionLevel;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -52,7 +53,6 @@ public class PdfLabResultsController {
      * Генерирует PDF-файл с результатами лабораторных исследований по заданным параметрам.
      *
      * @param ids      Идентификатор образца (исследования)
-     * @param snils    СНИЛС пациента
      * @param date     Дата проведения исследования
      * @param group    Группа исследований (vpch, afp_hgch, other)
      * @param response HTTP-ответ, в который будет записан PDF-файл
@@ -61,10 +61,12 @@ public class PdfLabResultsController {
     @GetMapping("/labresults/pdf/{ids}")
     public void generatePdf(
             @PathVariable String ids,
-            @RequestParam String snils,
+            HttpSession session,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String group,
             HttpServletResponse response) throws IOException {
+
+        Long patientId = (Long) session.getAttribute("patientId");
 
         //Логируем печать
         printStatsService.logPrint("LABREULT", Map.of("ids", ids));
@@ -74,8 +76,8 @@ public class PdfLabResultsController {
             group = "other";
         }
 
-        // Получаем все результаты для заданного СНИЛС и даты, фильтруем по ids (идентификатору анализа)
-        List<LabTestResultDto> results = labResultService.findResultsBySnilsAndDate(snils, date)
+        // Получаем все результаты для заданного patientID и даты, фильтруем по ids (идентификатору анализа)
+        List<LabTestResultDto> results = labResultService.findResultsByPatientIdAndDate(patientId, date)
                 .stream()
                 .filter(r -> r.getIds().equals(ids))
                 .collect(Collectors.toList());

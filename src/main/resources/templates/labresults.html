@@ -114,7 +114,8 @@
         const categories = [
             { key: "afp_hgch", label: "АФП и ХГЧ" },
             { key: "vpch", label: "ВПЧ" },
-            { key: "regular", label: "Остальные анализы" }
+            { key: "regular", label: "Остальные анализы" },
+            { key: "working", label: "Заказы в работе" }
         ];
 
         let hasData = false;
@@ -127,12 +128,47 @@
                 headerRow.innerHTML = `<td colspan="7" style="background:#f8f9fa; font-weight:bold;">${cat.label}</td>`;
                 tableBody.appendChild(headerRow);
 
-                group.forEach(result => {
-                    const row = document.createElement("tr");
-                    const wasPrinted = sessionStorage.getItem(`printed_${result.ids}`) === "true";
-                    const disabledClass = wasPrinted ? 'disabled' : '';
+                // Для группы "working" группируем по IDS
+                if (cat.key === "working") {
+                    const groupedByIds = group.reduce((acc, result) => {
+                        if (!acc[result.ids]) {
+                            acc[result.ids] = {
+                                ...result,
+                                usl: new Set([result.usl]) // Используем Set для хранения уникальных значений
+                            };
+                        } else {
+                            acc[result.ids].usl.add(result.usl); // Добавляем только уникальные значения
+                        }
+                        return acc;
+                    }, {});
 
-                    row.innerHTML = `
+                    Object.values(groupedByIds).forEach(result => {
+                        const row = document.createElement("tr");
+                        // Преобразуем Set обратно в массив и соединяем через запятую
+                        const uniqueUsl = Array.from(result.usl).join(", ");
+
+                        row.innerHTML = `
+                        <td>${result.ids}</td>
+                        <td>${result.material}</td>
+                        <td>${result.otd}</td>
+                        <td>${uniqueUsl}</td>
+                        <td>${result.collecdate}</td>
+                        <td>${result.finisdate}</td>
+                        <td>
+                            <button class="clickbtn print-btn disabled" disabled>
+                                <b>В работе</b>
+                            </button>
+                        </td>
+                    `;
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    group.forEach(result => {
+                        const row = document.createElement("tr");
+                        const wasPrinted = sessionStorage.getItem(`printed_${result.ids}`) === "true";
+                        const disabledClass = wasPrinted ? 'disabled' : '';
+
+                        row.innerHTML = `
                     <td>${result.ids}</td>
                     <td>${result.material}</td>
                     <td>${result.otd}</td>
@@ -149,8 +185,9 @@
                         </button>
                     </td>
                 `;
-                    tableBody.appendChild(row);
-                });
+                        tableBody.appendChild(row);
+                    });
+                }
             }
         });
 
