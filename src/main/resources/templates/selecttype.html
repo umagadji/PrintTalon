@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Выбор действия</title>
-  <link rel="stylesheet" th:href="@{/css/style.css}">
   <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
+  <link rel="stylesheet" th:href="@{/css/style.css}">
+  <script th:src="@{/js/lottie-player.js}"></script>
   <script src="/js/bootstrap.min.js"></script>
 </head>
 <body>
@@ -42,14 +43,32 @@
     <div class="row g-3">
       <div class="col-md-6">
         <a href="/services" class="d-block p-4 bg-white text-decoration-none text-center border rounded h-100 hover-shadow btngettalon">
-          <img th:src="@{/img/doctor.png}" alt="Талон" class="mb-3">
+          <div class="animate_wrapper d-flex justify-content-center mb-3">
+            <lottie-player
+                    th:src="@{/animations/doctor.json}"
+                    background="transparent"
+                    speed="1"
+                    style="max-width:300px;"
+                    loop
+                    autoplay>
+            </lottie-player>
+          </div>
           <div class="fs-5 fw-semibold">Распечатать<br>талон к врачу</div>
         </a>
       </div>
 
       <div class="col-md-6">
         <a href="/labresults" class="d-block p-4 bg-white text-decoration-none text-center border rounded h-100 hover-shadow btngetlabresults">
-          <img th:src="@{/img/labresults.png}" alt="Анализы" class="mb-3">
+          <div class="animate_wrapper d-flex justify-content-center mb-3">
+            <lottie-player
+                    th:src="@{/animations/labresults.json}"
+                    background="transparent"
+                    speed="1"
+                    style="max-width:300px;"
+                    loop
+                    autoplay>
+            </lottie-player>
+          </div>
           <div class="fs-5 fw-semibold">Распечатать<br>результаты анализов</div>
         </a>
       </div>
