@@ -28,6 +28,9 @@
             <img src="/img/logo.svg"/>
         </div>
         <div class="col-lg-10 d-flex justify-content-end align-items-center flex-wrap">
+            <div class="timer_block">
+                <div id="timer" style="font-size: 24px; font-weight: bold; color:#ffffff"></div>
+            </div>
             <div class="btns_block">
                 <button type="button" class="clickbtn custombtn" onclick="window.location.href='/index'">На главную</button>
             </div>
@@ -60,6 +63,29 @@
         </div>
     </div>
 </div>
+
+<!-- ✅ Скрипт таймера -->
+<script type="text/javascript">
+    let seconds = 120;
+
+    function updateTimer() {
+        document.getElementById('timer').textContent = seconds + " сек.";
+        if (seconds === 0) {
+            window.location.href = '/index';
+        } else {
+            seconds--;
+            setTimeout(updateTimer, 1000);
+        }
+    }
+
+    // Запуск таймера
+    updateTimer();
+
+    // Ручной выход
+    function logout() {
+        window.location.href = '/index';
+    }
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
